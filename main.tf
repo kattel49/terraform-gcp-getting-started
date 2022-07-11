@@ -80,3 +80,42 @@ resource "google_compute_firewall" "terraform_network_allow_internal" {
     #add along as subnetwork grows in the vpc network
     source_ranges = ["10.1.0.0/16"]
 }
+
+# test vms
+resource "google_compute_instance" "example" {
+    name = "test-instance"
+    machine_type = "f1-micro"
+    
+    boot_disk {
+        initialize_params {
+          image = "debian-cloud/debian-10"
+        }
+    }
+
+    network_interface {
+      network = google_compute_network.vpc_network.self_link
+      access_config{
+
+      }
+    }
+}
+
+resource "google_compute_instance" "example_http_instance" {
+    name = "test-http-instance"
+    machine_type = "f1-micro"
+
+    boot_disk{
+        initialize_params{
+            image = "debian-cloud/debian-10"
+        }
+    }
+
+    network_interface{
+        network = google_compute_network.vpc_network.self_link
+        access_config{
+
+        }
+    }
+
+    tags = ["http-server"]
+}

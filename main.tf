@@ -10,7 +10,7 @@ terraform {
 provider "google" {
     project = "sapient-cycling-355714"
     region = "europe-west3"
-    zone = "europe-west3-a"
+    zone = "europe-west3-c"
 }
 
 #custom network
@@ -85,7 +85,9 @@ resource "google_compute_firewall" "terraform_network_allow_internal" {
 resource "google_compute_instance" "example" {
     name = "test-instance"
     machine_type = "f1-micro"
-    
+    depends_on = [
+      google_compute_network.vpc_network
+    ]
     boot_disk {
         initialize_params {
           image = "debian-cloud/debian-10"
@@ -93,9 +95,8 @@ resource "google_compute_instance" "example" {
     }
 
     network_interface {
-      network = google_compute_network.vpc_network.self_link
+      subnetwork = google_compute_subnetwork.terraform_subnet_eur.self_link
       access_config{
-
       }
     }
 }
@@ -103,19 +104,28 @@ resource "google_compute_instance" "example" {
 resource "google_compute_instance" "example_http_instance" {
     name = "test-http-instance"
     machine_type = "f1-micro"
-
+    depends_on = [
+      google_compute_network.vpc_network
+    ]
     boot_disk{
         initialize_params{
-            image = "debian-cloud/debian-10"
+            image = "debian-cloud/debian-9"
         }
     }
 
     network_interface{
-        network = google_compute_network.vpc_network.self_link
+        subnetwork = google_compute_subnetwork.terraform_subnet_eur.self_link
         access_config{
 
         }
     }
-
+    #the startup script did not work
+    metadata_startup_script = <<SCRIPT
+    #! /bin/bash
+    sleep 10
+    apt update && apt install apache2 -y
+    echo "<!doctype html><html><body><h1>Hello World! from test-http-instance </h1></body></html>" | tee /var/www/html/index.html
+    systemctl restart apache2
+    SCRIPT
     tags = ["http-server"]
 }

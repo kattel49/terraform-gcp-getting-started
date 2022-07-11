@@ -9,7 +9,6 @@ terraform {
 #google
 provider "google" {
     project = "sapient-cycling-355714"
-    version = "3.5.0"
     region = "europe-west3"
     zone = "europe-west3-a"
 }
@@ -23,7 +22,61 @@ resource "google_compute_network" "vpc_network" {
 #subnetwork
 resource "google_compute_subnetwork" "terraform_subnet_eur" {
     name = "terraform-subnet-eur"
+    depends_on = [
+      google_compute_network.vpc_network
+    ]
     ip_cidr_range = "10.1.0.0/16"
     #attach subnetwork to the vpc_network defined above
     network = google_compute_network.vpc_network.id
+}
+
+#firewall rules
+resource "google_compute_firewall" "terraform_network_allow_icmp_ssh_rdp"{
+    name = "terraform-network-allow-icmp-ssh-rdp"
+    network = google_compute_network.vpc_network.name
+    depends_on = [
+      google_compute_subnetwork.terraform_subnet_eur
+    ]
+    allow{
+        protocol = "icmp"
+    }
+    allow{
+        protocol = "tcp"
+        ports = ["22", "3389"]
+    }
+    #allow everyone with the credentials to connect to instances
+    source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "terraform_network_allow_http_https" {
+    name = "terraform-network-allow-http-https"
+    network = google_compute_network.vpc_network.name
+    depends_on = [
+      google_compute_subnetwork.terraform_subnet_eur
+    ]
+    allow{
+        protocol = "tcp"
+        ports = ["80", "443"]
+    }
+    #instances with http-server will have :80 and :443 open to all connections
+    target_tags = ["http-server"]
+    source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "terraform_network_allow_internal" {
+    name = "terraform-network-allow-internal"
+    network = google_compute_network.vpc_network.name
+    depends_on = [
+      google_compute_subnetwork.terraform_subnet_eur
+    ]
+    allow{
+        protocol = "udp"
+        ports = ["0-65535"]
+    }
+    allow{
+        protocol = "tcp"
+        ports = ["0-65535"]
+    }
+    #add along as subnetwork grows in the vpc network
+    source_ranges = ["10.1.0.0/16"]
 }
